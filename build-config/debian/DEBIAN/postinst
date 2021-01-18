@@ -2,14 +2,34 @@
 USER=atlas
 
 set -e
-grep "$USER" /etc/passwd || adduser --system "$USER"
-chown -R "$USER" /var/atlas-probe
+grep "$USER" /etc/passwd || adduser --system --group "$USER"
+chown -R "$USER:$USER" /var/atlas-probe
+chmod -R 2775 /var/atlas-probe
 mkdir -p /var/atlasdata
-chown "$USER" /var/atlasdata
+chown "$USER:$USER" /var/atlasdata
 chmod 0 /var/atlasdata
 
-setcap cap_net_raw=ep /usr/local/atlas/bb-13.3/bin/busybox
+# Doesn't work on the Seagate container, FS doesn't support capabilities
+#setcap cap_net_raw=ep /usr/local/atlas/bb-13.3/bin/busybox
+# Run affected applets as root instead
+BUSYBOX_EXEC=/usr/local/atlas/bb-13.3/bin/busybox
+chown root:root $BUSYBOX_EXEC
+chmod 4755 $BUSYBOX_EXEC
+BUSYBOX_CONFIG=/etc/busybox.conf
+chown root:root $BUSYBOX_CONFIG
+chmod 600 $BUSYBOX_CONFIG
 
-systemctl --now --quiet enable var-atlasdata.mount
-systemctl --now --quiet enable atlas
-systemctl --now --quiet start atlas
+# Need log directory since init.d doesn't provide logging
+LOGDIR=/var/log/atlas
+mkdir -p $LOGDIR
+chown -R $USER:$GROUP $LOGDIR # Make sure atlas owns the log directory
+chmod 2775 $LOGDIR # Files in here should be of the atlas group
+
+#systemctl --now --quiet enable var-atlasdata.mount
+#systemctl --now --quiet enable atlas
+#systemctl --now --quiet start atlas
+
+# init.d version
+service_name="atlas"
+update-rc.d $service_name defaults
+update-rc.d $service_name disable

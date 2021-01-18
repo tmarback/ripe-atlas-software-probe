@@ -21,31 +21,31 @@ systemd_unit_rel="etc/systemd/system"
 
 get_arch()
 {
-	case $(uname -m) in
-	aarch64) echo arm64 ;;
-	armv6l) echo armhf ;;
-	armv7l) echo armhf ;;
-	i686) echo i386 ;;
-	x86_64) echo amd64 ;;
-	*)
-		return 1
-	;;
-	esac
-	return 0
+    case $(uname -m) in
+    aarch64) echo arm64 ;;
+    armv6l) echo armhf ;;
+    armv7l) echo armhf ;;
+    i686) echo i386 ;;
+    x86_64) echo amd64 ;;
+    *)
+        return 1
+    ;;
+    esac
+    return 0
 }
 
 # Check if the current architecture is supported
 get_arch > /dev/null ||
 {
-	sysarch=$(uname -m)
-	echo "Unsupported architecture $sysarch" >&2
-	# Try to find out what it should be
-	binarch=$(file -L /bin/sh | sed -n 's/.*ELF 64-bit LSB shared object, \([^,]*\), .*/\1/p')
-	if [ -n "$binarch" ]
-	then
-		echo "Add '$sysarch) echo $binarch ;;' to get_arch()" >&2
-	fi
-	exit
+    sysarch=$(uname -m)
+    echo "Unsupported architecture $sysarch" >&2
+    # Try to find out what it should be
+    binarch=$(file -L /bin/sh | sed -n 's/.*ELF 64-bit LSB shared object, \([^,]*\), .*/\1/p')
+    if [ -n "$binarch" ]
+    then
+        echo "Add '$sysarch) echo $binarch ;;' to get_arch()" >&2
+    fi
+    exit
 }
 
 rm -rf "$stadir" 
@@ -56,45 +56,45 @@ cp -r "$srcdir/probe-busybox" "$builddir/probe-busybox"
 
 # Build
 (
-	cd "$builddir/probe-busybox/libevent-2.1.11-stable"
-	autoreconf --install
-	./configure
-	make
-	cd ..
-	make
+    cd "$builddir/probe-busybox/libevent-2.1.11-stable"
+    autoreconf --install
+    ./configure
+    make
+    cd ..
+    make
 )
 
 # Install
 (
-	cd "$builddir/probe-busybox"
-	make install
-	mkdir -p "$sta_atlas_local/bb-13.3"
-	cp -r ./_install/* "$sta_atlas_local/bb-13.3"
-	mkdir -p "$sta_atlas_local/lib"
-	cp ./libevent-2.1.11-stable/.libs/libevent-*so* "$sta_atlas_local/lib"
-	cp ./libevent-2.1.11-stable/.libs/libevent_openssl-*so* "$sta_atlas_local/lib"
-	mkdir -p "$sta_atlas_local/bin/arch/debian-sw-probe"
-	mkdir -p "$sta_atlas_local/bin/arch/linux"
+    cd "$builddir/probe-busybox"
+    make install
+    mkdir -p "$sta_atlas_local/bb-13.3"
+    cp -r ./_install/* "$sta_atlas_local/bb-13.3"
+    mkdir -p "$sta_atlas_local/lib"
+    cp ./libevent-2.1.11-stable/.libs/libevent-*so* "$sta_atlas_local/lib"
+    cp ./libevent-2.1.11-stable/.libs/libevent_openssl-*so* "$sta_atlas_local/lib"
+    mkdir -p "$sta_atlas_local/bin/arch/debian-sw-probe"
+    mkdir -p "$sta_atlas_local/bin/arch/linux"
 )
 
 (
-	cd "$srcdir"
-	cp bin/ATLAS "$sta_atlas_local/bin"
-	cp bin/common-pre.sh "$sta_atlas_local/bin"
-	cp bin/common.sh "$sta_atlas_local/bin"
-	cp bin/reginit.sh "$sta_atlas_local/bin"
-	cp bin/arch/debian-sw-probe/* "$sta_atlas_local/bin/arch/debian-sw-probe"
-	cp bin/arch/linux/* "$sta_atlas_local/bin/arch/linux"
-	mkdir -p "$sta_atlas_local/etc"
-	cp atlas-config/etc/* "$sta_atlas_local/etc"
-	mkdir -p "$sta_atlas_local/state"
-	cp atlas-config/state/* "$sta_atlas_local/state"
+    cd "$srcdir"
+    cp bin/ATLAS "$sta_atlas_local/bin"
+    cp bin/common-pre.sh "$sta_atlas_local/bin"
+    cp bin/common.sh "$sta_atlas_local/bin"
+    cp bin/reginit.sh "$sta_atlas_local/bin"
+    cp bin/arch/debian-sw-probe/* "$sta_atlas_local/bin/arch/debian-sw-probe"
+    cp bin/arch/linux/* "$sta_atlas_local/bin/arch/linux"
+    mkdir -p "$sta_atlas_local/etc"
+    cp atlas-config/etc/* "$sta_atlas_local/etc"
+    mkdir -p "$sta_atlas_local/state"
+    cp atlas-config/state/* "$sta_atlas_local/state"
 )
 
-	mkdir -p "$sta_var_atlas/state"
-	echo prod > "$sta_var_atlas/state/mode"
-	mkdir -p "$sta_var_atlas/bin"
-	ln -s /var/atlasdata "$sta_var_atlas/data"
+    mkdir -p "$sta_var_atlas/state"
+    echo prod > "$sta_var_atlas/state/mode"
+    mkdir -p "$sta_var_atlas/bin"
+    ln -s /var/atlasdata "$sta_var_atlas/data"
 
 echo 'DEVICE_NAME=debian-sw-probe' > "$sta_var_atlas/bin/config.sh"
 echo 'ATLAS_BASE="'"/$var_atlas_rel"'"' >> "$sta_var_atlas/bin/config.sh"
@@ -120,6 +120,109 @@ TimeoutStopSec=60
 WantedBy=multi-user.target
 EOF
 
+# For when systemd is not supported
+wrapper_file_rel=usr/local/atlas/bin/ATLAS_wrapper.sh
+logfile=/var/log/atlas/atlas.log
+cat << 'EOF' | sed "s|<LOGFILE>|${logfile}|"  > "$stadir/$wrapper_file_rel"
+#!/bin/sh
+
+add_date() {
+    while IFS= read -r line; do
+        printf '[%s] %s\n' "$(date)" "$line";
+    done
+}
+
+printf "\n===[ ATLAS PROBE STARTING ]===\n" | add_date >>$logfile 2>&1
+
+logfile=<LOGFILE>
+/usr/local/atlas/bin/ATLAS | add_date >>$logfile 2>&1
+
+printf "===[ ATLAS PROBE STOPPED ]===\n\n" | add_date >>$logfile 2>&1
+
+EOF
+chmod 755 "$stadir/$wrapper_file_rel"
+
+initd_unit_rel="etc/init.d"
+service_name="atlas"
+initd_file="$stadir/$initd_unit_rel/$service_name"
+mkdir -p "$stadir/$initd_unit_rel"
+cat << 'EOF' | sed "s|<WORK_DIR>|/${var_atlas_rel}|" | sed "s|<EXEC_FILE>|/${wrapper_file_rel}|" > "$initd_file"
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides: atlas
+# Required-Start:    $syslog $local_fs $remote_fs 
+# Required-Stop:    $syslog $local_fs $remote_fs 
+# Short-Description: Atlas Probe
+### END INIT INFO
+
+export USER=atlas
+export GROUP=$USER
+export HOME=<WORK_DIR>
+
+. /lib/lsb/init-functions
+prog=atlas
+PIDFILE=/var/run/${prog}.pid
+DESC="Atlas Probe"
+do_start() {
+    log_daemon_msg "Starting $DESC" "$prog"
+    start-stop-daemon --start --oknodo --pidfile $PIDFILE --make-pidfile --background --exec <EXEC_FILE> --chdir <WORK_DIR> --umask 002 --chuid $USER --group $GROUP
+    return $?
+}
+
+do_stop() {
+    log_daemon_msg "Stopping $DESC" "$prog"
+    start-stop-daemon --stop --oknodo --pidfile $PIDFILE --retry=TERM/30/KILL/5 
+    [ "$?" = 2 ] && return 2
+    rm -f $PIDFILE
+    return 0
+}
+
+do_force_reload() {
+    stop && start
+    return $?
+}
+
+do_status() {
+    start-stop-daemon --status --pidfile $PIDFILE 
+    
+    STATUS_CODE=$?
+    if [ "$STATUS_CODE" = 0 ]; then
+        log_success_msg "$prog is running"
+    elif [ "$STATUS_CODE" = 4 ]; then
+        log_failure_msg "could not access PID file for $prog"
+    else
+        log_failure_msg "$prog is not running"
+    fi
+        
+    return $STATUS_CODE
+}
+
+case "$1" in
+    start)
+        do_start
+        ;;
+    stop)
+        do_stop
+        ;;
+    force-reload)
+        do_force_reload
+        ;;
+    restart)
+        do_stop
+        do_start
+        ;;
+    status)
+        do_status
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|force-reload|restart|status}"
+        exit 2
+esac
+
+exit $?
+EOF
+chmod 700 $initd_file
+
 cat > "$stadir/$systemd_unit_rel/var-atlasdata.mount" << EOF
 [Unit]
 Description=Atlas Data
@@ -135,11 +238,23 @@ Options=noatime,nosuid,nodev,noexec,mode=1777
 WantedBy=atlas.service
 EOF
 
+# Workaround for no capability support in the filesystem
+# Set applets that need capabilities to use root
+busybox_config_rel=etc/busybox.conf
+cat > "$stadir/$busybox_config_rel" << EOF
+[SUID]
+traceroute = sx- root.atlas
+evtraceroute = sx- root.atlas
+ping = sx- root.atlas
+evping = sx- root.atlas
+eooqd = sx- root.atlas
+EOF
+
 cp -r "$srcdir/build-config/debian/DEBIAN" "$stadir"
 ARCH=$(get_arch)
 
 sed < "$stadir/DEBIAN/control.in" > "$stadir/DEBIAN/control" \
-	"s/ARCH/$ARCH/;s/VERSION/$VERSION/"
+    "s/ARCH/$ARCH/;s/VERSION/$VERSION/"
 rm -f "$stadir/DEBIAN/control.in"
 
 chmod -R og+rX,ugo-st "$stadir"

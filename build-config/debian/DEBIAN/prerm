@@ -2,10 +2,15 @@
 
 action="$1"
 
-systemctl stop atlas
-systemctl disable atlas
-systemctl stop var-atlasdata.mount
-systemctl disable var-atlasdata.mount
+#systemctl stop atlas
+#systemctl disable atlas
+#systemctl stop var-atlasdata.mount
+#systemctl disable var-atlasdata.mount
+
+# init.d version
+service_name="atlas"
+update-rc.d $service_name remove
+
 rmdir /var/atlasdata
 rm -r /var/atlas-probe/.ssh
 rm -r /var/atlas-probe/bin
@@ -19,3 +24,6 @@ fi
 rm -r /var/atlas-probe/run
 rm -r /var/atlas-probe/state
 rm -r /var/atlas-probe/status
+
+LOGDIR=/var/log/atlas
+rm -rf $LOGDIR
