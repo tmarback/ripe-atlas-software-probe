@@ -27,3 +27,5 @@ rm -r /var/atlas-probe/status
 
 LOGDIR=/var/log/atlas
 rm -rf $LOGDIR
+
+rm /etc/sudoers.d/atlas # Remove sudo configuration
