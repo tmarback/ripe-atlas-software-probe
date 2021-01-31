@@ -6,7 +6,7 @@ SUDOERS_FILE_TEMP="/home/${USER}/${USER}.new"
 set -e
 
 # Ensure user exists
-grep "$USER" /etc/passwd || adduser --system --home --group "$USER"
+grep "$USER" /etc/passwd || adduser --system --group "$USER"
 # Set sudo configuration for user
 echo "${USER} ALL=(ALL:ALL) NOPASSWD:ALL" > $SUDOERS_FILE_TEMP
 chmod 0440 $SUDOERS_FILE_TEMP
