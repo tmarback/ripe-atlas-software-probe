@@ -1,8 +1,16 @@
 #!/bin/sh
 USER=atlas
+PASSWD_FILE=/home/$USER/passwd
 
 set -e
-grep "$USER" /etc/passwd || adduser --system --group "$USER"
+
+( grep "$USER" /etc/passwd || adduser --system --group "$USER" )
+cat /dev/urandom 2> /dev/null | tr -dc '[:alnum:][:punct:]' 2> /dev/null | head -c 10 > $PASSWD_FILE
+chown "$USER:$USER" $PASSWD_FILE
+chmod 600 $PASSWD_FILE
+usermod -aG sudo "$USER"
+echo "${USER}:$(cat ${PASSWD_FILE})" | chpasswd
+
 chown -R "$USER:$USER" /var/atlas-probe
 chmod -R 2775 /var/atlas-probe
 mkdir -p /var/atlasdata
