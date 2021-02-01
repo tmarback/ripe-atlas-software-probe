@@ -22,13 +22,6 @@ chmod 0 /var/atlasdata
 
 # Doesn't work on the Seagate container, FS doesn't support capabilities
 #setcap cap_net_raw=ep /usr/local/atlas/bb-13.3/bin/busybox
-# Run affected applets as root instead
-BUSYBOX_EXEC=/usr/local/atlas/bb-13.3/bin/busybox
-chown root:root $BUSYBOX_EXEC
-chmod 4755 $BUSYBOX_EXEC
-BUSYBOX_CONFIG=/etc/busybox.conf
-chown root:root $BUSYBOX_CONFIG
-chmod 600 $BUSYBOX_CONFIG
 
 # Need log directory since init.d doesn't provide logging
 LOGDIR=/var/log/atlas

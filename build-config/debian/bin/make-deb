@@ -132,12 +132,12 @@ add_date() {
     done
 }
 
-printf "\n===[ ATLAS PROBE STARTING ]===\n" | add_date >>$logfile 2>&1
-
 logfile=<LOGFILE>
-/usr/local/atlas/bin/ATLAS | add_date >>$logfile 2>&1
+printf "\n===[ ATLAS PROBE STARTING ]===\n" | add_date >> $logfile
 
-printf "===[ ATLAS PROBE STOPPED ]===\n\n" | add_date >>$logfile 2>&1
+/usr/local/atlas/bin/ATLAS 2>&1 | add_date >> $logfile
+
+printf "===[ ATLAS PROBE STOPPED ]===\n\n" | add_date >> $logfile
 
 EOF
 chmod 755 "$stadir/$wrapper_file_rel"
@@ -171,8 +171,22 @@ do_start() {
 
 do_stop() {
     log_daemon_msg "Stopping $DESC" "$prog"
-    start-stop-daemon --stop --oknodo --pidfile $PIDFILE --retry=TERM/30/KILL/5 
-    [ "$?" = 2 ] && return 2
+    #start-stop-daemon --stop --oknodo --pidfile $PIDFILE --retry=TERM/30/KILL/5 # doesn't kill subprocesses
+    #[ "$?" = 2 ] && return 2
+    
+    pkill -G $GROUP
+    count=0
+    while [ "$( pgrep -c -G $GROUP )" != "0" ]; do
+        if [ "$count" < 30 ]; then
+            count=$( expr $count + 1 )
+            sleep 1
+        else # time out and force kill after 30 seconds
+            log_daemon_msg "Stopping $DESC timed out, killing" "$prog"
+            pkill -G $GROUP -KILL
+            break
+        fi
+    done
+    
     rm -f $PIDFILE
     return 0
 }
@@ -236,18 +250,6 @@ Options=noatime,nosuid,nodev,noexec,mode=1777
 
 [Install]
 WantedBy=atlas.service
-EOF
-
-# Workaround for no capability support in the filesystem
-# Set applets that need capabilities to use root
-busybox_config_rel=etc/busybox.conf
-cat > "$stadir/$busybox_config_rel" << EOF
-[SUID]
-traceroute = sx- root.atlas
-evtraceroute = sx- root.atlas
-ping = sx- root.atlas
-evping = sx- root.atlas
-eooqd = sx- root.atlas
 EOF
 
 cp -r "$srcdir/build-config/debian/DEBIAN" "$stadir"
