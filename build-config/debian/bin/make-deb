@@ -177,7 +177,7 @@ do_stop() {
     pkill -G $GROUP
     count=0
     while [ "$( pgrep -c -G $GROUP )" != "0" ]; do
-        if [ "$count" < 30 ]; then
+        if [ "$count" -lt 30 ]; then
             count=$( expr $count + 1 )
             sleep 1
         else # time out and force kill after 30 seconds
@@ -192,7 +192,7 @@ do_stop() {
 }
 
 do_force_reload() {
-    stop && start
+    do_stop && do_start
     return $?
 }
 
